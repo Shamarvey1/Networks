@@ -1,0 +1,16 @@
+{
+  "name": "backend-b",
+  "version": "1.0.0",
+  "description": "Backend B service for Computer Networks course project running on Mac 2",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [
+    "networking",
+    "backend-b",
+    "mac2"
+  ],
+  "author": "Member 2",
+  "license": "ISC"
+}
