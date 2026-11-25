@@ -1,0 +1,85 @@
+PHASE 2 EVIDENCE - MAC 1
+Wed Nov 25 18:15:18 IST 2026
+
+===== BACKEND A =====
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0100    29    0    29    0     0   1135      0 --:--:-- --:--:-- --:--:--  1160
+HTTP/1.1 200 OK
+X-Backend: A
+Content-Type: application/json
+Cache-Control: public, max-age=60
+Date: Wed, 25 Nov 2026 12:45:18 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+Transfer-Encoding: chunked
+
+{"backend":"A","status":"ok"}
+===== PRIMARY DNS =====
+
+; <<>> DiG 9.10.6 <<>> @10.167.6.155 app.team1.test +noall +answer
+; (1 server found)
+;; global options: +cmd
+app.team1.test.		10	IN	A	10.167.6.155
+
+; <<>> DiG 9.10.6 <<>> @10.167.6.155 ttl.team1.test +noall +answer
+; (1 server found)
+;; global options: +cmd
+ttl.team1.test.		10	IN	A	10.167.6.155
+
+===== STANDBY NGINX =====
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0100    29    0    29    0     0   2659      0 --:--:-- --:--:-- --:--:--  2900
+HTTP/1.1 200 OK
+Server: nginx/1.31.10
+Date: Wed, 25 Nov 2026 12:45:18 GMT
+Content-Type: application/json
+Transfer-Encoding: chunked
+Connection: keep-alive
+X-Backend: A
+Cache-Control: public, max-age=60
+
+{"backend":"A","status":"ok"}
+===== FIREWALL RULES =====
+No ALTQ support in kernel
+ALTQ related functions disabled
+pass in quick on en0 inet proto tcp from 10.167.6.29 to 10.167.6.155 port = 3001 flags S/SA keep state
+block drop in quick on en0 inet proto tcp from any to 10.167.6.155 port = 3001
+
+===== NGINX CONFIG =====
+worker_processes 1;
+pid /tmp/nginx-standby.pid;
+error_log /tmp/nginx-standby-error.log;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    access_log /tmp/nginx-standby-access.log;
+
+    upstream node_backends {
+        server 10.167.6.155:3001 max_fails=1 fail_timeout=10s;
+        server 10.167.6.29:3002 max_fails=1 fail_timeout=10s;
+    }
+
+    server {
+        listen 80;
+        server_name 10.167.6.155 localhost app.team1.test;
+
+        location / {
+            proxy_pass http://node_backends;
+
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+
+            proxy_pass_header X-Backend;
+
+            proxy_connect_timeout 5s;
+            proxy_read_timeout 60s;
+        }
+    }
+}
